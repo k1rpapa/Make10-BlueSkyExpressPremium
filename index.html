@@ -16,22 +16,29 @@
             overflow-x: hidden;
         }
 
-        h1 {
+		h1 {
             color: #333;
-            font-size: 28px;
+            /* 画面幅に合わせて文字サイズを自動調整（最小20px〜最大28px） */
+            font-size: clamp(20px, 6vw, 28px); 
             text-align: center;
-            height: 40px;
+            /* heightの固定をなくし、改行時の行間を設定して重なりを解消 */
+            line-height: 1.4;
+            min-height: 60px; 
             margin-bottom: 10px;
         }
 
-        /* ★追加：コンボとレア確率を表示するクリーンなステータスエリア */
         #statusArea {
             display: flex;
-            gap: 20px;
+            /* 画面が狭い場合は自動で折り返す（重なり防止） */
+            flex-wrap: wrap; 
+            justify-content: center;
+            /* 上下10px、左右20pxの隙間 */
+            gap: 10px 20px; 
             margin-bottom: 15px;
-            font-size: 20px;
+            font-size: clamp(16px, 5vw, 20px);
             font-weight: bold;
-            height: 30px;
+            /* こちらもheightの固定をなくす */
+            min-height: 30px;
             align-items: center;
         }
         #comboDisplay {
@@ -213,19 +220,19 @@
             speechSynthesis.speak(utterance);
         }
 
-        function nextQuestion() {
+function nextQuestion() {
             if (!isPlaying) return;
             
             trainContainer.classList.remove('run-away'); 
-            
-            // ★変更：確率判定を行い、次の車両のカラー(赤/青 or 黄)を決定
             currentIsYellow = Math.random() < nextYellowChance;
 
             const presentCars = Math.floor(Math.random() * 9) + 1;
             currentMissing = 10 - presentCars; 
 
             renderTrains(presentCars, currentIsYellow);
-            questionText.innerHTML = '10両編成にするにはあと何両？';
+            
+            // ★ここを変更：「には」の後に改行タグを入れる
+            questionText.innerHTML = '10両編成にするには<br>あと何両？';
             
             questionStartTime = Date.now();
             setTimeout(speakQuestion, 500);
