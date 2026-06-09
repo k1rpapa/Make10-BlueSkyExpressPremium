@@ -14,6 +14,8 @@
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            /* 飛行機が画面外にはみ出た際にスクロールバーが出るのを防ぐ */
+            overflow-y: hidden; 
         }
 
         h1 {
@@ -56,7 +58,6 @@
             100% { opacity: 1; }
         }
 
-        /* ★追加：ハッピーイエロートレイン時のバナー */
         #happyBanner {
             display: none;
             color: #d48806;
@@ -90,11 +91,9 @@
             transition: transform 2s ease-in, background-color 0.5s, box-shadow 0.5s;
         }
 
-		/* ★修正：ハッピーモード（青空エクスプレス）の特別演出 */
+        /* ハッピーモード（青空エクスプレス）の特別演出 */
         #trainContainer.happy-mode {
-            /* 線路がくっきり見え、黄色も鮮やかに映える「明るい青空」のグラデーション */
             background: linear-gradient(135deg, #e1f5fe, #81d4fa);
-            /* 特別感のあるゴールドの光と枠線はキープ */
             box-shadow: 0 0 20px rgba(255, 193, 7, 0.6);
             border: 3px solid #ffc107;
         }
@@ -167,6 +166,39 @@
         .run-away {
             transform: translateX(150vw);
         }
+
+		/* ★変更：エアポート快特時の飛行機アニメーション設定 */
+        #airplane {
+            position: fixed;
+            bottom: -150px;
+            left: -150px;
+            width: 250px; /* ★ここで画像の大きさを調整できます */
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+
+       /* より飛行機らしい優雅な動きにする場合 */
+        .fly {
+            animation: takeoff 4.0s ease-out forwards;
+        }
+
+        /* 左下から右上への軌道 */
+        @keyframes takeoff {
+            0% {
+                bottom: -100px;
+                left: -100px;
+                transform: scale(0.5);
+                opacity: 1;
+            }
+            100% {
+                bottom: 120vh;
+                left: 120vw;
+                transform: scale(1.5);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -189,6 +221,9 @@
         <button id="endBtn" class="ctrl-btn">おわる</button>
     </div>
 
+    <!-- ★追加：飛行機の要素 -->
+	<img id="airplane" src="plane.png" alt="飛行機">
+
     <audio id="sndVoice" src="voice.mp3"></audio>
     <audio id="sndDoremi" src="doremi.mp3"></audio>
 
@@ -202,7 +237,8 @@
         const sndDoremi = document.getElementById('sndDoremi');
         const comboDisplay = document.getElementById('comboDisplay');
         const chanceDisplay = document.getElementById('chanceDisplay');
-        const happyBanner = document.getElementById('happyBanner'); // ★追加
+        const happyBanner = document.getElementById('happyBanner');
+        const airplane = document.getElementById('airplane'); // ★追加
 
         let isPlaying = false;
         let currentTarget = 10;
@@ -253,7 +289,6 @@
             trainContainer.classList.remove('run-away'); 
             currentIsYellow = Math.random() < nextYellowChance;
 
-            // ★追加：イエローの時は背景演出とバナーをオン、通常の時はオフ
             if (currentIsYellow) {
                 trainContainer.classList.add('happy-mode');
                 happyBanner.style.display = 'block';
@@ -298,12 +333,26 @@
                 let rankHtml = '';
                 let trainSpeed = '';
 
-                // ★追加：ボーナスタイムの閾値（しきいち）設定
-                // イエローなら制限時間を延長。通常は2.5秒と5.0秒
+                // ★追加：エアポート快特の閾値（1.0秒）を追加
+                const airportLimit = currentIsYellow ? 2.0 : 1.0; 
                 const kaitokuLimit = currentIsYellow ? 4.0 : 2.5;
                 const tokkyuLimit = currentIsYellow ? 6.5 : 5.0;
 
-                if (responseTime <= kaitokuLimit) {
+                // 飛行機のアニメーションをリセット
+                airplane.classList.remove('fly');
+                // 一度DOMを再描画させてアニメーションを確実にかけるためのハック
+                void airplane.offsetWidth; 
+
+                if (responseTime <= airportLimit) {
+                    // ★追加：エアポート快特（オレンジ色）
+                    rankHtml = '<span style="background-color: #ff7e00; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">エアポート快特</span>';
+                    trainSpeed = '0.5s'; // 爆速
+                    comboCount += 2; // コンボが2倍増えるボーナス
+                    nextYellowChance = 0.8; // レア確率も特大アップ
+                    
+                    // 飛行機を飛ばす！
+                    airplane.classList.add('fly');
+                } else if (responseTime <= kaitokuLimit) {
                     rankHtml = '<span style="background-color: #009944; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">快特 (かいとく)</span>';
                     trainSpeed = '0.8s'; 
                     comboCount++;
@@ -376,8 +425,8 @@
             numberPad.style.visibility = 'hidden';
             comboDisplay.style.display = 'none';
             chanceDisplay.style.display = 'none';
-            happyBanner.style.display = 'none'; // ★追加
-            trainContainer.classList.remove('happy-mode'); // ★追加
+            happyBanner.style.display = 'none'; 
+            trainContainer.classList.remove('happy-mode'); 
             questionText.textContent = 'ボタンをおしてね！';
             trainContainer.classList.remove('run-away');
             renderTrains(0, false);
