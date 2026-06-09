@@ -9,33 +9,43 @@
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
             background-color: #f0f4f8;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
-            /* 飛行機が画面外にはみ出た際にスクロールバーが出るのを防ぐ */
             overflow-y: hidden; 
+        }
+
+        /* ★追加：上部の伸縮する要素をすべて格納する「高さ固定」のコンテナ */
+        .game-header {
+            width: 100%;
+            max-width: 450px;
+            height: 150px; /* 高さを完全にロックして下部への影響をゼロにします */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* 枠内で縦方向に中央寄せ */
+            align-items: center;
+            margin-bottom: 10px;
         }
 
         h1 {
             color: #333;
-            font-size: clamp(20px, 6vw, 28px); 
+            font-size: clamp(18px, 5.5vw, 26px); /* スマホ向けにわずかにコンパクトに */
             text-align: center;
-            line-height: 1.4;
-            min-height: 60px; 
-            margin-bottom: 10px;
+            line-height: 1.3;
+            margin: 0 0 8px 0; /* マージンを固定 */
+            padding: 0;
         }
 
         #statusArea {
             display: flex;
             flex-wrap: wrap; 
             justify-content: center;
-            gap: 10px 20px; 
-            margin-bottom: 15px;
-            font-size: clamp(16px, 5vw, 20px);
+            gap: 5px 15px; 
+            margin-bottom: 8px;
+            font-size: clamp(15px, 4.5vw, 18px);
             font-weight: bold;
-            min-height: 30px;
             align-items: center;
         }
 
@@ -61,12 +71,11 @@
         #happyBanner {
             display: none;
             color: #d48806;
-            font-size: clamp(16px, 4vw, 20px);
+            font-size: clamp(14px, 4vw, 18px);
             font-weight: bold;
-            margin-bottom: 10px;
             text-align: center;
             background-color: #fff3cd;
-            padding: 5px 15px;
+            padding: 4px 12px;
             border-radius: 20px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             animation: float 2s infinite ease-in-out;
@@ -74,11 +83,11 @@
 
         @keyframes float {
             0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
+            50% { transform: translateY(-3px); }
             100% { transform: translateY(0px); }
         }
 
-        /* 5両×2段の車庫（基本設定） */
+        /* 5両×2段の車庫（完全に位置が固定されます） */
         #trainContainer {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -87,7 +96,7 @@
             padding: 20px;
             border-radius: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             transition: transform 2s ease-in, background-color 0.5s, box-shadow 0.5s;
         }
 
@@ -106,11 +115,12 @@
             background-position: center;
         }
 
+        /* テンキー（位置が固定され、押しやすさが向上） */
         #numberPad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             visibility: hidden;
         }
 
@@ -167,24 +177,20 @@
             transform: translateX(150vw);
         }
 
-		/* ★変更：エアポート快特時の飛行機アニメーション設定 */
         #airplane {
             position: fixed;
             bottom: -150px;
             left: -150px;
-            width: 250px; /* ★ここで画像の大きさを調整できます */
+            width: 150px; 
             z-index: 9999;
             pointer-events: none;
             opacity: 0;
         }
 
-
-       /* より飛行機らしい優雅な動きにする場合 */
         .fly {
-            animation: takeoff 4.0s ease-out forwards;
+            animation: takeoff 3.5s ease-out forwards;
         }
 
-        /* 左下から右上への軌道 */
         @keyframes takeoff {
             0% {
                 bottom: -100px;
@@ -203,14 +209,16 @@
 </head>
 <body>
 
-    <h1 id="questionText">ボタンをおしてね！</h1>
+    <div class="game-header">
+        <h1 id="questionText">ボタンをおしてね！</h1>
 
-    <div id="statusArea">
-        <div id="comboDisplay">0 コンボ</div>
-        <div id="chanceDisplay">つぎのレア確率: 10%</div>
+        <div id="statusArea">
+            <div id="comboDisplay">0 コンボ</div>
+            <div id="chanceDisplay">つぎのレア確率: 10%</div>
+        </div>
+
+        <div id="happyBanner">✨ ハッピーイエロートレイン 運行中！ (ボーナスタイム) ✨</div>
     </div>
-
-    <div id="happyBanner">✨ ハッピーイエロートレイン 運行中！ (ボーナスタイム) ✨</div>
 
     <div id="trainContainer"></div>
 
@@ -221,8 +229,7 @@
         <button id="endBtn" class="ctrl-btn">おわる</button>
     </div>
 
-    <!-- ★追加：飛行機の要素 -->
-	<img id="airplane" src="plane.png" alt="飛行機">
+    <img id="airplane" src="plane.png" alt="飛行機">
 
     <audio id="sndVoice" src="voice.mp3"></audio>
     <audio id="sndDoremi" src="doremi.mp3"></audio>
@@ -238,7 +245,7 @@
         const comboDisplay = document.getElementById('comboDisplay');
         const chanceDisplay = document.getElementById('chanceDisplay');
         const happyBanner = document.getElementById('happyBanner');
-        const airplane = document.getElementById('airplane'); // ★追加
+        const airplane = document.getElementById('airplane');
 
         let isPlaying = false;
         let currentTarget = 10;
@@ -333,24 +340,18 @@
                 let rankHtml = '';
                 let trainSpeed = '';
 
-                // ★追加：エアポート快特の閾値（1.0秒）を追加
                 const airportLimit = currentIsYellow ? 2.0 : 1.0; 
                 const kaitokuLimit = currentIsYellow ? 4.0 : 2.5;
                 const tokkyuLimit = currentIsYellow ? 6.5 : 5.0;
 
-                // 飛行機のアニメーションをリセット
                 airplane.classList.remove('fly');
-                // 一度DOMを再描画させてアニメーションを確実にかけるためのハック
                 void airplane.offsetWidth; 
 
                 if (responseTime <= airportLimit) {
-                    // ★追加：エアポート快特（オレンジ色）
                     rankHtml = '<span style="background-color: #ff7e00; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">エアポート快特</span>';
-                    trainSpeed = '0.5s'; // 爆速
-                    comboCount += 2; // コンボが2倍増えるボーナス
-                    nextYellowChance = 0.8; // レア確率も特大アップ
-                    
-                    // 飛行機を飛ばす！
+                    trainSpeed = '0.5s'; 
+                    comboCount += 2; 
+                    nextYellowChance = 0.8; 
                     airplane.classList.add('fly');
                 } else if (responseTime <= kaitokuLimit) {
                     rankHtml = '<span style="background-color: #009944; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">快特 (かいとく)</span>';
