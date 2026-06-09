@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make10-Express Premium</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            text-align: center;
+            height: 40px;
+            margin-bottom: 10px;
+        }
+
+        /* ★追加：コンボとレア確率を表示するクリーンなステータスエリア */
+        #statusArea {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            height: 30px;
+            align-items: center;
+        }
+        #comboDisplay {
+            color: #ff9900;
+            background-color: #fff3cd;
+            padding: 2px 10px;
+            border-radius: 20px;
+            display: none;
+        }
+        #chanceDisplay {
+            color: #dc3545;
+            animation: blink 0.8s infinite alternate;
+            display: none;
+        }
+        @keyframes blink {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* 5両×2段の車庫 */
+        #trainContainer {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            background-color: #e0e0e0;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            transition: transform 2s ease-in;
+        }
+
+        .car-slot {
+            width: 80px;
+            height: 80px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* テンキー（1〜9） */
+        #numberPad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+            visibility: hidden;
+        }
+
+        .num-btn {
+            width: 80px;
+            height: 80px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .num-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* コントロールボタン */
+        .control-area {
+            display: flex;
+            gap: 20px;
+        }
+
+        .ctrl-btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        #startBtn { background-color: #28a745; }
+        #endBtn { background-color: #dc3545; display: none; }
+
+        @keyframes mildShake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        .shake {
+            animation: mildShake 0.4s ease-in-out;
+            background-color: #6c757d !important;
+        }
+
+        .run-away {
+            transform: translateX(150vw);
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="questionText">ボタンをおしてね！</h1>
+
+    <div id="statusArea">
+        <div id="comboDisplay">0 コンボ</div>
+        <div id="chanceDisplay">つぎのレア確率: 10%</div>
+    </div>
+
+    <div id="trainContainer"></div>
+
+    <div id="numberPad"></div>
+
+    <div class="control-area">
+        <button id="startBtn" class="ctrl-btn">はじめる</button>
+        <button id="endBtn" class="ctrl-btn">おわる</button>
+    </div>
+
+    <audio id="sndVoice" src="voice.mp3"></audio>
+    <audio id="sndDoremi" src="doremi.mp3"></audio>
+
+    <script>
+        const questionText = document.getElementById('questionText');
+        const trainContainer = document.getElementById('trainContainer');
+        const numberPad = document.getElementById('numberPad');
+        const startBtn = document.getElementById('startBtn');
+        const endBtn = document.getElementById('endBtn');
+        const sndVoice = document.getElementById('sndVoice');
+        const sndDoremi = document.getElementById('sndDoremi');
+        const comboDisplay = document.getElementById('comboDisplay');
+        const chanceDisplay = document.getElementById('chanceDisplay');
+
+        let isPlaying = false;
+        let currentTarget = 10;
+        let currentMissing = 0;
+        let questionStartTime = 0;
+
+        // ★追加：ゲーム性向上のための変数
+        let comboCount = 0;          // 現在のコンボ数
+        let nextYellowChance = 0.1;  // 次のインシデントでレアが出る確率 (初期値10%)
+        let currentIsYellow = false; // 現在の問題の車両がイエローかどうか
+
+        function init() {
+            renderTrains(0, false);
+            for (let i = 1; i <= 9; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'num-btn';
+                btn.textContent = i;
+                btn.onclick = () => checkAnswer(i, btn);
+                numberPad.appendChild(btn);
+            }
+        }
+
+        // ★変更：車両画像(通常orレア)を判定してレンダリング
+        function renderTrains(presentCount, isYellow) {
+            trainContainer.innerHTML = '';
+            const trainImg = isYellow ? 'yellow.png' : 'train.png';
+            
+            for (let i = 0; i < 10; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'car-slot';
+                if (i < presentCount) {
+                    slot.style.backgroundImage = `url('${trainImg}')`;
+                } else {
+                    slot.style.backgroundImage = "url('empty.png')";
+                }
+                trainContainer.appendChild(slot);
+            }
+        }
+
+        function speakQuestion() {
+            const utterance = new SpeechSynthesisUtterance('10両編成にするには、あと何両？');
+            utterance.lang = 'ja-JP';
+            utterance.rate = 0.9;
+            speechSynthesis.speak(utterance);
+        }
+
+        function nextQuestion() {
+            if (!isPlaying) return;
+            
+            trainContainer.classList.remove('run-away'); 
+            
+            // ★変更：確率判定を行い、次の車両のカラー(赤/青 or 黄)を決定
+            currentIsYellow = Math.random() < nextYellowChance;
+
+            const presentCars = Math.floor(Math.random() * 9) + 1;
+            currentMissing = 10 - presentCars; 
+
+            renderTrains(presentCars, currentIsYellow);
+            questionText.innerHTML = '10両編成にするにはあと何両？';
+            
+            questionStartTime = Date.now();
+            setTimeout(speakQuestion, 500);
+        }
+
+        // ★追加：コンボと確率のUI表示を更新する関数
+        function updateStatusUI() {
+            if (comboCount > 0) {
+                comboDisplay.textContent = `${comboCount} コンボ！`;
+                comboDisplay.style.display = 'block';
+            } else {
+                comboDisplay.style.display = 'none';
+            }
+
+            if (nextYellowChance > 0.1) {
+                chanceDisplay.textContent = `つぎのレア確率: ${Math.round(nextYellowChance * 100)}% 🔥`;
+                chanceDisplay.style.display = 'block';
+            } else {
+                chanceDisplay.style.display = 'none';
+            }
+        }
+
+        function checkAnswer(selectedNumber, btnElement) {
+            if (!isPlaying) return;
+
+            if (selectedNumber === currentMissing) {
+                const answerTime = Date.now();
+                const responseTime = (answerTime - questionStartTime) / 1000; 
+                
+                let rankHtml = '';
+                let trainSpeed = '';
+
+                // ★変更：解答タイムに応じた「コンボ」と「次回レア確率」の変動ロジック
+                if (responseTime <= 2.5) {
+                    // 快特：コンボ追加、次回レア確率が70%に跳ね上がる
+                    rankHtml = '<span style="background-color: #009944; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">快特 (かいとく)</span>';
+                    trainSpeed = '0.8s'; 
+                    comboCount++;
+                    nextYellowChance = 0.7; 
+                } else if (responseTime <= 5.0) {
+                    // 特急：コンボ維持、次回レア確率は30%
+                    rankHtml = '<span style="background-color: #e60012; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">特急 (とっきゅう)</span>';
+                    trainSpeed = '1.5s'; 
+                    nextYellowChance = 0.3;
+                } else {
+                    // 普通：コンボリセット、次回レア確率は最低値(10%)に戻る
+                    rankHtml = '<span style="color: #333333; font-weight: bold;">普通 (ふつう)</span>';
+                    trainSpeed = '3.0s'; 
+                    comboCount = 0;
+                    nextYellowChance = 0.1;
+                }
+
+                // UIの更新
+                updateStatusUI();
+
+                // ★変更：コンボ数に応じてドレミファインバーターのピッチ(再生速度)を上げる
+                // 1コンボごとに5%スピードアップ（耳が痛くならないよう最大1.25倍に制限）
+                const currentPitch = Math.min(1.0 + (comboCount * 0.05), 1.25);
+                sndDoremi.playbackRate = currentPitch;
+
+                questionText.innerHTML = `${rankHtml} 出発進行！ <span style="font-size:16px;">(タイム: ${responseTime.toFixed(1)}秒)</span>`;
+                
+                sndVoice.play();
+                setTimeout(() => sndDoremi.play(), 1000); 
+
+                // 10両満タンにして発車（現在の問題がイエローなら10両すべてイエローになります）
+                renderTrains(10, currentIsYellow);
+                trainContainer.style.transitionDuration = trainSpeed;
+
+                setTimeout(() => {
+                    trainContainer.classList.add('run-away');
+                }, 1000);
+
+                setTimeout(() => {
+                    nextQuestion();
+                }, 3500);
+
+            } else {
+                // 不正解の時はコンボのみリセット（ペナルティ音はなし）
+                comboCount = 0;
+                nextYellowChance = 0.1;
+                updateStatusUI();
+
+                btnElement.classList.add('shake');
+                setTimeout(() => {
+                    btnElement.classList.remove('shake');
+                }, 400);
+            }
+        }
+
+        startBtn.onclick = () => {
+            isPlaying = true;
+            startBtn.style.display = 'none';
+            endBtn.style.display = 'inline-block';
+            numberPad.style.visibility = 'visible';
+            
+            // コンボ等の初期化
+            comboCount = 0;
+            nextYellowChance = 0.1;
+            updateStatusUI();
+            sndDoremi.playbackRate = 1.0;
+
+            sndVoice.volume = 0; sndVoice.play(); sndVoice.pause(); sndVoice.volume = 1;
+            sndDoremi.volume = 0; sndDoremi.play(); sndDoremi.pause(); sndDoremi.volume = 1;
+
+            nextQuestion();
+        };
+
+        endBtn.onclick = () => {
+            isPlaying = false;
+            startBtn.style.display = 'inline-block';
+            endBtn.style.display = 'none';
+            numberPad.style.visibility = 'hidden';
+            comboDisplay.style.display = 'none';
+            chanceDisplay.style.display = 'none';
+            questionText.textContent = 'ボタンをおしてね！';
+            trainContainer.classList.remove('run-away');
+            renderTrains(0, false);
+            speechSynthesis.cancel(); 
+        };
+
+        window.onload = init;
+    </script>
+</body>
+</html>
