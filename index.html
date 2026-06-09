@@ -293,7 +293,7 @@ function nextQuestion() {
                 const currentPitch = Math.min(1.0 + (comboCount * 0.05), 1.25);
                 sndDoremi.playbackRate = currentPitch;
 
-                questionText.innerHTML = `${rankHtml} 出発進行！ <span style="font-size:16px;">(タイム: ${responseTime.toFixed(1)}秒)</span>`;
+                questionText.innerHTML = `${rankHtml} <span style="white-space: nowrap;">出発進行！ <span style="font-size:16px;">(タイム: ${responseTime.toFixed(1)}秒)</span></span>`;
                 
                 sndVoice.play();
                 setTimeout(() => sndDoremi.play(), 1000); 
