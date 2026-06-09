@@ -16,12 +16,10 @@
             overflow-x: hidden;
         }
 
-		h1 {
+        h1 {
             color: #333;
-            /* 画面幅に合わせて文字サイズを自動調整（最小20px〜最大28px） */
             font-size: clamp(20px, 6vw, 28px); 
             text-align: center;
-            /* heightの固定をなくし、改行時の行間を設定して重なりを解消 */
             line-height: 1.4;
             min-height: 60px; 
             margin-bottom: 10px;
@@ -29,18 +27,16 @@
 
         #statusArea {
             display: flex;
-            /* 画面が狭い場合は自動で折り返す（重なり防止） */
             flex-wrap: wrap; 
             justify-content: center;
-            /* 上下10px、左右20pxの隙間 */
             gap: 10px 20px; 
             margin-bottom: 15px;
             font-size: clamp(16px, 5vw, 20px);
             font-weight: bold;
-            /* こちらもheightの固定をなくす */
             min-height: 30px;
             align-items: center;
         }
+
         #comboDisplay {
             color: #ff9900;
             background-color: #fff3cd;
@@ -48,17 +44,40 @@
             border-radius: 20px;
             display: none;
         }
+
         #chanceDisplay {
             color: #dc3545;
             animation: blink 0.8s infinite alternate;
             display: none;
         }
+
         @keyframes blink {
             0% { opacity: 0.4; }
             100% { opacity: 1; }
         }
 
-        /* 5両×2段の車庫 */
+        /* ★追加：ハッピーイエロートレイン時のバナー */
+        #happyBanner {
+            display: none;
+            color: #d48806;
+            font-size: clamp(16px, 4vw, 20px);
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+            background-color: #fff3cd;
+            padding: 5px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            animation: float 2s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* 5両×2段の車庫（基本設定） */
         #trainContainer {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -68,7 +87,16 @@
             border-radius: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             margin-bottom: 30px;
-            transition: transform 2s ease-in;
+            transition: transform 2s ease-in, background-color 0.5s, box-shadow 0.5s;
+        }
+
+		/* ★修正：ハッピーモード（青空エクスプレス）の特別演出 */
+        #trainContainer.happy-mode {
+            /* 線路がくっきり見え、黄色も鮮やかに映える「明るい青空」のグラデーション */
+            background: linear-gradient(135deg, #e1f5fe, #81d4fa);
+            /* 特別感のあるゴールドの光と枠線はキープ */
+            box-shadow: 0 0 20px rgba(255, 193, 7, 0.6);
+            border: 3px solid #ffc107;
         }
 
         .car-slot {
@@ -79,7 +107,6 @@
             background-position: center;
         }
 
-        /* テンキー（1〜9） */
         #numberPad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -106,7 +133,6 @@
             transform: scale(0.95);
         }
 
-        /* コントロールボタン */
         .control-area {
             display: flex;
             gap: 20px;
@@ -152,6 +178,8 @@
         <div id="chanceDisplay">つぎのレア確率: 10%</div>
     </div>
 
+    <div id="happyBanner">✨ ハッピーイエロートレイン 運行中！ (ボーナスタイム) ✨</div>
+
     <div id="trainContainer"></div>
 
     <div id="numberPad"></div>
@@ -174,16 +202,16 @@
         const sndDoremi = document.getElementById('sndDoremi');
         const comboDisplay = document.getElementById('comboDisplay');
         const chanceDisplay = document.getElementById('chanceDisplay');
+        const happyBanner = document.getElementById('happyBanner'); // ★追加
 
         let isPlaying = false;
         let currentTarget = 10;
         let currentMissing = 0;
         let questionStartTime = 0;
 
-        // ★追加：ゲーム性向上のための変数
-        let comboCount = 0;          // 現在のコンボ数
-        let nextYellowChance = 0.1;  // 次のインシデントでレアが出る確率 (初期値10%)
-        let currentIsYellow = false; // 現在の問題の車両がイエローかどうか
+        let comboCount = 0;          
+        let nextYellowChance = 0.1;  
+        let currentIsYellow = false; 
 
         function init() {
             renderTrains(0, false);
@@ -196,7 +224,6 @@
             }
         }
 
-        // ★変更：車両画像(通常orレア)を判定してレンダリング
         function renderTrains(presentCount, isYellow) {
             trainContainer.innerHTML = '';
             const trainImg = isYellow ? 'yellow.png' : 'train.png';
@@ -220,25 +247,31 @@
             speechSynthesis.speak(utterance);
         }
 
-function nextQuestion() {
+        function nextQuestion() {
             if (!isPlaying) return;
             
             trainContainer.classList.remove('run-away'); 
             currentIsYellow = Math.random() < nextYellowChance;
 
+            // ★追加：イエローの時は背景演出とバナーをオン、通常の時はオフ
+            if (currentIsYellow) {
+                trainContainer.classList.add('happy-mode');
+                happyBanner.style.display = 'block';
+            } else {
+                trainContainer.classList.remove('happy-mode');
+                happyBanner.style.display = 'none';
+            }
+
             const presentCars = Math.floor(Math.random() * 9) + 1;
             currentMissing = 10 - presentCars; 
 
             renderTrains(presentCars, currentIsYellow);
-            
-            // ★ここを変更：「には」の後に改行タグを入れる
             questionText.innerHTML = '10両編成にするには<br>あと何両？';
             
             questionStartTime = Date.now();
             setTimeout(speakQuestion, 500);
         }
 
-        // ★追加：コンボと確率のUI表示を更新する関数
         function updateStatusUI() {
             if (comboCount > 0) {
                 comboDisplay.textContent = `${comboCount} コンボ！`;
@@ -265,31 +298,29 @@ function nextQuestion() {
                 let rankHtml = '';
                 let trainSpeed = '';
 
-                // ★変更：解答タイムに応じた「コンボ」と「次回レア確率」の変動ロジック
-                if (responseTime <= 2.5) {
-                    // 快特：コンボ追加、次回レア確率が70%に跳ね上がる
+                // ★追加：ボーナスタイムの閾値（しきいち）設定
+                // イエローなら制限時間を延長。通常は2.5秒と5.0秒
+                const kaitokuLimit = currentIsYellow ? 4.0 : 2.5;
+                const tokkyuLimit = currentIsYellow ? 6.5 : 5.0;
+
+                if (responseTime <= kaitokuLimit) {
                     rankHtml = '<span style="background-color: #009944; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">快特 (かいとく)</span>';
                     trainSpeed = '0.8s'; 
                     comboCount++;
                     nextYellowChance = 0.7; 
-                } else if (responseTime <= 5.0) {
-                    // 特急：コンボ維持、次回レア確率は30%
+                } else if (responseTime <= tokkyuLimit) {
                     rankHtml = '<span style="background-color: #e60012; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-weight: bold;">特急 (とっきゅう)</span>';
                     trainSpeed = '1.5s'; 
                     nextYellowChance = 0.3;
                 } else {
-                    // 普通：コンボリセット、次回レア確率は最低値(10%)に戻る
                     rankHtml = '<span style="color: #333333; font-weight: bold;">普通 (ふつう)</span>';
                     trainSpeed = '3.0s'; 
                     comboCount = 0;
                     nextYellowChance = 0.1;
                 }
 
-                // UIの更新
                 updateStatusUI();
 
-                // ★変更：コンボ数に応じてドレミファインバーターのピッチ(再生速度)を上げる
-                // 1コンボごとに5%スピードアップ（耳が痛くならないよう最大1.25倍に制限）
                 const currentPitch = Math.min(1.0 + (comboCount * 0.05), 1.25);
                 sndDoremi.playbackRate = currentPitch;
 
@@ -298,7 +329,6 @@ function nextQuestion() {
                 sndVoice.play();
                 setTimeout(() => sndDoremi.play(), 1000); 
 
-                // 10両満タンにして発車（現在の問題がイエローなら10両すべてイエローになります）
                 renderTrains(10, currentIsYellow);
                 trainContainer.style.transitionDuration = trainSpeed;
 
@@ -311,7 +341,6 @@ function nextQuestion() {
                 }, 3500);
 
             } else {
-                // 不正解の時はコンボのみリセット（ペナルティ音はなし）
                 comboCount = 0;
                 nextYellowChance = 0.1;
                 updateStatusUI();
@@ -329,7 +358,6 @@ function nextQuestion() {
             endBtn.style.display = 'inline-block';
             numberPad.style.visibility = 'visible';
             
-            // コンボ等の初期化
             comboCount = 0;
             nextYellowChance = 0.1;
             updateStatusUI();
@@ -348,6 +376,8 @@ function nextQuestion() {
             numberPad.style.visibility = 'hidden';
             comboDisplay.style.display = 'none';
             chanceDisplay.style.display = 'none';
+            happyBanner.style.display = 'none'; // ★追加
+            trainContainer.classList.remove('happy-mode'); // ★追加
             questionText.textContent = 'ボタンをおしてね！';
             trainContainer.classList.remove('run-away');
             renderTrains(0, false);
